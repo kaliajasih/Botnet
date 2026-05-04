@@ -1,0 +1,349 @@
+// ==UserScript==
+// @name         Universal Auto Clicker & Tracker
+// @namespace    http://tampermonkey.net/
+// @version      2.0
+// @description  Universal auto clicker with draggable target bubble and CPS tracker.
+// @author      kontol setuduo
+// @match        *://*/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Create target bubble
+    const targetBubble = document.createElement('div');
+    targetBubble.id = 'autoclicker-target-bubble';
+    Object.assign(targetBubble.style, {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%',
+        backgroundColor: 'rgba(239, 68, 68, 0.3)',
+        border: '2px solid #ef4444',
+        zIndex: '999998',
+        cursor: 'move',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)',
+        pointerEvents: 'auto',
+        touchAction: 'none'
+    });
+
+    const dot = document.createElement('div');
+    Object.assign(dot.style, {
+        width: '4px',
+        height: '4px',
+        backgroundColor: '#ef4444',
+        borderRadius: '50%'
+    });
+    targetBubble.appendChild(dot);
+    document.body.appendChild(targetBubble);
+
+    // Target Bubble Dragging logic
+    let isDraggingBubble = false;
+    let bubbleOffsetX = 0;
+    let bubbleOffsetY = 0;
+
+    const startBubbleDrag = (clientX, clientY) => {
+        isDraggingBubble = true;
+        const rect = targetBubble.getBoundingClientRect();
+        targetBubble.style.transform = 'none';
+        targetBubble.style.left = rect.left + 'px';
+        targetBubble.style.top = rect.top + 'px';
+        
+        bubbleOffsetX = clientX - rect.left;
+        bubbleOffsetY = clientY - rect.top;
+    };
+
+    const doBubbleDrag = (clientX, clientY) => {
+        if (!isDraggingBubble) return;
+        requestAnimationFrame(() => {
+            targetBubble.style.left = `${clientX - bubbleOffsetX}px`;
+            targetBubble.style.top = `${clientY - bubbleOffsetY}px`;
+        });
+    };
+
+    const stopBubbleDrag = () => {
+        isDraggingBubble = false;
+    };
+
+    targetBubble.addEventListener('mousedown', (e) => startBubbleDrag(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => doBubbleDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup', stopBubbleDrag);
+
+    targetBubble.addEventListener('touchstart', (e) => startBubbleDrag(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchmove', (e) => doBubbleDrag(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchend', stopBubbleDrag);
+
+    // Create overlay container
+    const overlay = document.createElement('div');
+    overlay.id = 'popcat-tracker-overlay';
+    
+    // Style the overlay
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        top: '10px',
+        right: '10px',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        color: '#ffffff',
+        padding: '12px',
+        borderRadius: '8px',
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        zIndex: '999999',
+        pointerEvents: 'auto', // Changed to auto to allow dragging
+        transition: 'box-shadow 0.3s ease', // Removed 'all' to prevent drag lag
+        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        minWidth: '160px',
+        backdropFilter: 'blur(4px)',
+        userSelect: 'none' // Prevent text selection while dragging
+    });
+
+    // Drag handle
+    const dragHandle = document.createElement('div');
+    dragHandle.innerText = '≡ Auto Clicker';
+    Object.assign(dragHandle.style, {
+        cursor: 'grab',
+        fontWeight: 'bold',
+        borderBottom: '1px solid rgba(255,255,255,0.2)',
+        paddingBottom: '6px',
+        marginBottom: '4px',
+        textAlign: 'center',
+        fontSize: '12px',
+        color: '#4ade80'
+    });
+    overlay.appendChild(dragHandle);
+
+    // Dragging logic
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    // Support both mouse and touch for dragging
+    const startDrag = (clientX, clientY) => {
+        isDragging = true;
+        dragHandle.style.cursor = 'grabbing';
+        const rect = overlay.getBoundingClientRect();
+        dragOffsetX = clientX - rect.left;
+        dragOffsetY = clientY - rect.top;
+    };
+
+    const doDrag = (clientX, clientY) => {
+        if (!isDragging) return;
+        requestAnimationFrame(() => {
+            overlay.style.left = `${clientX - dragOffsetX}px`;
+            overlay.style.top = `${clientY - dragOffsetY}px`;
+            overlay.style.right = 'auto'; // Clear right positioning
+        });
+    };
+
+    const stopDrag = () => {
+        isDragging = false;
+        dragHandle.style.cursor = 'grab';
+    };
+
+    dragHandle.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => doDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup', stopDrag);
+
+    dragHandle.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchmove', (e) => doDrag(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchend', stopDrag);
+
+    // Auto detect mobile screen and adjust size
+    const adjustSize = () => {
+        if (window.innerWidth < 600) {
+            overlay.style.fontSize = '12px';
+            overlay.style.padding = '8px';
+            overlay.style.minWidth = '130px';
+        } else {
+            overlay.style.fontSize = '14px';
+            overlay.style.padding = '12px';
+            overlay.style.minWidth = '160px';
+        }
+    };
+    
+    window.addEventListener('resize', adjustSize);
+    adjustSize();
+
+    // State variables
+    let totalClicks = 0;
+    let currentCps = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let clickCountThisSecond = 0;
+
+    // UI Elements
+    const coordsEl = document.createElement('div');
+    coordsEl.innerText = `Last Click: X: 0, Y: 0`;
+    
+    const totalEl = document.createElement('div');
+    totalEl.innerText = `Total Clicks: 0`;
+    
+    const cpsEl = document.createElement('div');
+    cpsEl.innerText = `CPS: 0`;
+
+    // Slider container
+    const sliderContainer = document.createElement('div');
+    Object.assign(sliderContainer.style, {
+        marginTop: '8px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        borderTop: '1px solid rgba(255,255,255,0.2)',
+        paddingTop: '8px'
+    });
+
+    const sliderLabel = document.createElement('label');
+    sliderLabel.innerText = 'Auto Click: Off';
+    sliderLabel.htmlFor = 'speed-slider';
+    sliderLabel.style.cursor = 'pointer';
+    sliderLabel.style.fontSize = '11px';
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.id = 'speed-slider';
+    slider.min = '0';
+    slider.max = '65535'; // 16-bit precision
+    slider.value = '0';
+    slider.style.width = '100%';
+    slider.style.cursor = 'pointer';
+
+    // Auto clicker logic
+    let autoClickInterval = null;
+    let isAutoClicking = false;
+    let targetCps = 0;
+    let lastClickTime = 0;
+    let accumulatedClicks = 0;
+    
+    // Calculate clicks per second based on 16-bit slider value (0-65535)
+    // 1 = 10 clicks/sec, 65535 = 10000 clicks/sec
+    const getClicksPerSecond = (val) => {
+        if (val === 0) return 0;
+        if (val === 65535) return 10000;
+        
+        // Exponential calculation for smooth curve across 65535 steps
+        return Math.round(10 * Math.pow(1000, (val - 1) / 65534));
+    };
+
+    // Fast clicker using requestAnimationFrame for better performance and precise timing
+    const clickLoop = (timestamp) => {
+        if (!isAutoClicking || targetCps <= 0) return;
+
+        // Calculate time elapsed since last frame
+        const deltaTime = timestamp - lastClickTime;
+        lastClickTime = timestamp;
+
+        // Calculate exactly how many clicks should happen in this time window
+        accumulatedClicks += (targetCps * deltaTime) / 1000;
+
+        // Get the integer number of clicks to perform this frame
+        const clicksToPerform = Math.floor(accumulatedClicks);
+        
+        if (clicksToPerform > 0) {
+            // Keep the fractional part for the next frame to maintain exact average CPS
+            accumulatedClicks -= clicksToPerform;
+
+            // Get target coordinates from bubble
+            const rect = targetBubble.getBoundingClientRect();
+            const targetX = rect.left + rect.width / 2;
+            const targetY = rect.top + rect.height / 2;
+
+            // Find element under the bubble
+            targetBubble.style.pointerEvents = 'none';
+            const targetElement = document.elementFromPoint(targetX, targetY) || document.body;
+            targetBubble.style.pointerEvents = 'auto';
+            
+            for (let i = 0; i < clicksToPerform; i++) {
+                // Create and dispatch synthetic events to the specific element
+                const pointerDown = new PointerEvent('pointerdown', {
+                    bubbles: true, cancelable: true, clientX: targetX, clientY: targetY, isPrimary: true
+                });
+                
+                const pointerUp = new PointerEvent('pointerup', {
+                    bubbles: true, cancelable: true, clientX: targetX, clientY: targetY, isPrimary: true
+                });
+
+                const clickEvent = new MouseEvent('click', {
+                    bubbles: true, cancelable: true, clientX: targetX, clientY: targetY
+                });
+
+                targetElement.dispatchEvent(pointerDown);
+                targetElement.dispatchEvent(pointerUp);
+                targetElement.dispatchEvent(clickEvent);
+            }
+        }
+
+        if (isAutoClicking) {
+            requestAnimationFrame(clickLoop);
+        }
+    };
+
+    const startAutoClicker = (cps) => {
+        targetCps = cps;
+        
+        if (cps <= 0) {
+            isAutoClicking = false;
+            return;
+        }
+
+        if (!isAutoClicking) {
+            isAutoClicking = true;
+            lastClickTime = performance.now();
+            accumulatedClicks = 0;
+            requestAnimationFrame(clickLoop);
+        }
+    };
+
+    slider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        if (val === 0) {
+            sliderLabel.innerText = 'Auto Click: Off';
+            startAutoClicker(0);
+        } else {
+            const cps = getClicksPerSecond(val);
+            sliderLabel.innerText = `Auto Click: ${cps.toLocaleString()} CPS`;
+            startAutoClicker(cps);
+        }
+    });
+
+    sliderContainer.appendChild(sliderLabel);
+    sliderContainer.appendChild(slider);
+
+    overlay.appendChild(coordsEl);
+    overlay.appendChild(totalEl);
+    overlay.appendChild(cpsEl);
+    overlay.appendChild(sliderContainer);
+
+    document.body.appendChild(overlay);
+
+    // Click listener
+    document.addEventListener('click', (e) => {
+        // Ignore clicks on the overlay or target bubble itself to prevent false positives
+        if (overlay.contains(e.target) || targetBubble.contains(e.target)) return;
+
+        totalClicks++;
+        clickCountThisSecond++;
+        lastX = e.clientX;
+        lastY = e.clientY;
+
+        coordsEl.innerText = `Last Click: X: ${lastX}, Y: ${lastY}`;
+        totalEl.innerText = `Total Clicks: ${totalClicks}`;
+    }, { passive: true });
+
+    // CPS calculator
+    setInterval(() => {
+        currentCps = clickCountThisSecond;
+        cpsEl.innerText = `CPS: ${currentCps}`;
+        clickCountThisSecond = 0;
+    }, 1000);
+
+})();
